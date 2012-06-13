@@ -1,0 +1,386 @@
+#!/bin/sh
+# WARNING: This file was auto-generated. Do not edit!
+shout() { echo "build-db: $*" >&2; }
+barf() { shout "fatal: $*"; exit 111; }
+safe() { "$@" || barf "cannot $*"; }
+yell() { [ $verbose -ge $1 ] && { shift; shout "$*"; } }
+
+# The format of a file in .build-db/ is:
+#   stat line
+#   dep lines
+#
+# A stat line has one of the forms:
+#   N filename
+#   B filename
+#   T filename
+#   S filename
+#
+# The first indicates a nonexistent source file.
+# The second indicates a target being rebuilt.
+# The third indicates a target file.
+# The fourth indicates an existing source file.
+# 
+# A dep line has one of the forms:
+#   sourcename N
+#   sourcename S sig
+#   targetname T sig
+#   buildfile M target basename
+# 
+# The first is a negative dependency; the target is out of date if it exists.
+# The second is a source file.  It is out of date if its signature has changed.
+# The third is a target.  It is out of date if its signature has changed or if
+# any of its dependencies is out of date.  We refer to these lines by "type",
+# the second column.  In the T case the sig may be empty, which means that the
+# target is always out of date.  This applies to a target like "it".
+# The fifth is a makefile rule.  It lists the build file and its arguments.
+
+usage() {
+  shout "usage: build-db [ -vq ] mode [ arg ...]"
+  exit 100
+}
+
+help() {
+  shout "usage: build-db [ -vq ] mode [ arg ...]" 2>&1
+  cat << EOF
+
+Supported modes are:
+
+  check	file			      Check whether a file is up to date.
+  deps target dep ...		      Add deps to target dep list.
+  remove file			      Remove file from DB.
+  removedb			      Remove entire DB.
+  status			      List status for all files in DB.
+  list				      List targets in DB.
+  info				      Show dependency info.
+  init				      Initialize for build run.
+  sigprog			      Construct signature program.
+  set_nofile file		      Mark file as nonexistent.
+  set_source file		      Mark file as a source file.
+  set_building file		      Mark file as a target undergoing rebuild.
+  set_target file		      Mark file as a target as rebuilt.
+  set_makerule target rules base      Add make rule to target record.
+  help				      Print this message.
+
+EOF
+  exit 0
+}
+
+sigprog() {
+  safe saveto "$db/sigprog" cat conf-sig
+}
+
+# sig_match file sig
+sig_match() {
+  [ -r "$1" ] || return 1
+  sig_match_val="`sh $db/sigprog "$1"`"
+  [ "$2" = "$sig_match_val" ] && return 0 || return 1
+}
+
+check() {
+  yell 2 "check $*"
+  check_f="$1"
+  check_db_f="`db_file "$1"`"
+  [ -r "$db/current/$check_db_f" ] && {
+    echo Y
+    return 0
+  }
+
+  if [ ! -r "$db/status/$check_db_f" ]
+  then
+    [ -f "$check_f" ] && echo S || echo T
+    return 111
+  fi
+
+  safe read check_stat check_sig < "$db/status/$check_db_f"
+  case "$check_stat" in
+    T)
+      # Change to target does make it out of date.
+      sig_match "$check_f" "$check_sig" && check_deps "$check_f" && {
+	touch "$db/current/$check_db_f"; echo Y; return 0
+      }
+      echo T
+      return 111
+      ;;
+    S)
+      # Change to source does make it out of date.
+      sig_match "$check_f" "$check_sig" && {
+	touch "$db/current/$check_db_f"; echo Y; return 0
+      }
+      [ -r "$check_f" ] && echo S || echo N
+      return 111
+      ;;
+    N)
+      [ -f "$check_f" ] || { echo Y; return 0; }
+      echo S
+      return 111
+      ;;
+    M)
+      echo Y
+      return 0
+      ;;
+    B)
+      echo T
+      return 111
+      ;;
+    *)
+      barf "unrecognized status: $check_stat"
+      ;;
+  esac
+}
+
+check_deps() {
+  yell 2 "check_deps $*"
+  check_deps_f="`db_file "$1"`"
+  { read check_deps_d
+    while read check_deps_d check_deps_stat check_deps_rest
+    do
+      [ "M" = "$check_deps_stat" ] && continue
+      check_deps_d_f="`db_file "$check_deps_d"`"
+      [ -r "$db/status/$check_deps_d_f" ] || return 111
+      safe read check_deps_s check_deps_r < "$db/status/$check_deps_d_f"
+      [ "$check_deps_s" = "$check_deps_stat" ] \
+	&& [ "$check_deps_r" = "$check_deps_rest" ] \
+	&& check "$check_deps_d" >/dev/null \
+	&& continue
+      return 111
+    done
+  } < "$db/status/$check_deps_f"
+  return 0
+}
+
+saveto() {
+  saveto_file="$1"
+  shift
+  "$@" > "$saveto_file.tmp" \
+    && mv "$saveto_file.tmp" "$saveto_file" \
+    && return 0
+  rm -f "$saveto_file.tmp"
+  return 111
+}
+
+stat_sig() {
+  echo "$1" "`sh $db/sigprog "$2"`"
+}
+
+# Update stat line for target from B to T.
+# Trivial success if not currently B.
+# If file does not exist, build_notarget => no sig.
+commit_target() {
+  commit_target_f="`db_file "$1"`"
+  { safe read commit_target_stat
+    case "$commit_target_stat" in
+      B*)
+	[ -f "$1" ] && safe stat_sig T "$1" || echo T
+	;;
+      *)
+	safe echo "$commit_target_stat"
+	;;
+    esac
+    safe cat -
+  } < "$db/status/$commit_target_f"
+  return 0
+}
+
+make_target() {
+  safe cat "$1"
+  shift
+  safe echo "$@"
+  return 0
+}
+
+set_nofile() {
+  set_nofile_f="`db_file "$1"`"
+  safe saveto "$db/status/$set_nofile_f" echo "N"
+  safe touch "$db/current/$set_nofile_f"
+}
+
+set_source() {
+  set_source_f="`db_file "$1"`"
+  safe saveto "$db/status/$set_source_f" stat_sig "S" "$1"
+  safe touch "$db/current/$set_source_f"
+}
+
+set_building() {
+  set_building_f="`db_file "$1"`"
+  safe rm -f "$db/current/$set_building_f"
+  safe saveto "$db/status/$set_building_f" echo "B"
+}
+
+set_target() {
+  set_target_f="`db_file "$1"`"
+  safe saveto "$db/status/$set_target_f" commit_target "$1"
+  safe touch "$db/current/$set_target_f"
+}
+
+set_makerule() {
+  set_makerule_f="`db_file "$1"`"
+  safe saveto "$db/status/$set_makerule_f" \
+    make_target "$db/status/$set_makerule_f" "$2" "M" "$3"
+}
+
+# usage: init
+init() {
+  yell 2 "init $*"
+  safe rm -fr "$db/current"
+  safe mkdir "$db/current"
+  safe mkdir -p "$db/status"
+}
+
+db_file() {
+  echo "`echo "$1" | sed -e 's/%/%25/g' -e 's!/!%2F!g' -e 's/^\.\./%2C%2C/'`" 
+}
+
+# usage: remove file
+remove() {
+  yell 2 "remove $*"
+  for f in "$@"
+  do
+    remove_f="`db_file "$f"`"
+    safe rm -f "$db/status/$remove_f" "$db/current/$remove_f"
+  done
+}
+
+removedb() {
+  yell 2 "removedb $*"
+  safe rm -fr "$db"
+}
+
+# Replace old deps lines with new for given files.
+deps_add() {
+  yell 2 "deps_add $*"
+  deps_add_file="`db_file "$1"`"
+  shift
+  safe awk '
+    BEGIN {
+      for (i = 1;i <= ARGC;i++)
+	a[ARGV[i]] = 1
+      ARGC = 1
+    }
+    1 == NR { print; next }
+    1 == a[$1] { next }
+    { print }
+  ' "$@" < "$db/status/$deps_add_file" || return 111
+  for f in "$@"
+  do
+    deps_add_f="`db_file "$f"`"
+    safe printf "%s " "$f"
+    safe head -1 "$db/status/$deps_add_f"
+  done
+  return 0
+}
+
+# usage: deps target [ dep ... ]
+# Append dependencies to file record.
+deps() {
+  yell 2 "deps $*"
+  deps_f="`db_file "$1"`"
+  saveto "$db/status/$deps_f" deps_add "$@"
+}
+
+# usage: list
+# List all files and stats in DB.
+status() {
+  yell 2 "status $*"
+  [ -d "$db/status" ] || return 0
+  safe ls "$db/status" | while read f
+  do
+    safe printf "%s " "$f"
+    safe head -1 "$db/status/$f"
+  done
+  return 0
+}
+
+# usage: list
+# List all files with stat B or T in DB.
+# Restrict to names if give.
+list() {
+  yell 2 "list $*"
+  safe status | safe awk '"T" == $2 || "B" == $2 { print $1 }'
+}
+
+# Print build info for all targets. Output is:
+#   target
+#   make rule arguments
+#   dependencies
+#   empty line
+info() {
+  yell 2 "info $*"
+  safe list | while read info_target
+  do
+    info_f="`db_file "$info_target"`"
+    echo "$info_target"
+    safe awk '
+      1 == NR { next }
+      "M" == $2 {
+	printf("%s\n%s\n",$1,$3)
+	found = 1
+	exit 0
+      }
+      { next }
+      END {
+	if (found)
+	  exit 0
+	exit 111
+      }
+    ' < "$db/status/$info_f"
+    safe awk '
+      1 == NR { next }
+      $2 ~ /^[ST]$/ {
+	print $1
+	next
+      }
+      END {
+	print ""
+      }
+    ' < "$db/status/$info_f"
+  done
+}
+
+# MAIN
+
+verbose=1
+db=".build-db"
+while [ $# -gt 0 ]
+do
+  case "$1" in
+    -v)
+      verbose="`expr $verbose + 1`"
+      shift
+      ;;
+    -q)
+      verbose="`expr $verbose - 1`"
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+[ "X$db" = "X" ] && barf "empty DB name"
+[ $# -ge 1 ] || usage
+
+[ -d "$db" ] || mkdir "$db" || barf "cannot create db dir: $db"
+
+[ 3 -le $verbose ] && set -x
+action="$1"
+shift
+
+case "$action" in
+  check|deps|remove|removedb|status|list|info|init|sigprog)
+    $action ${1+"$@"}
+    ;;
+
+  set_nofile|set_source|set_building|set_target|set_makerule)
+    $action ${1+"$@"}
+    ;;
+
+  help)
+    $action ${1+"$@"}
+    ;;
+
+  *)
+    usage
+    ;;
+esac
+

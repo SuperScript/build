@@ -1,0 +1,6 @@
+auto
+-g
+
+This first line of this file determines the options used to compile .c files
+into .o files.  If the first word is "auto" then this word is replaced by
+the standard options calculated for the platform in print-compile.

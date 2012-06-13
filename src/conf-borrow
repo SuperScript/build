@@ -1,0 +1,7 @@
+false
+
+The first line indicates a program to run in order to borrow a target from
+somewhere else.  The program takes the target under construction as an a final
+argument.  It must return zero if successful and non-zero otherwise.
+
+

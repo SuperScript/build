@@ -1,0 +1,25 @@
+= Introduction
+
+* How to link:install.html[install] build
+* The link:build.html[+build+] program
+* The link:build-db.html[+build-db+] program
+* Developing with link:develop.html[build]
+
+== What Is build?
+The build package provides tools for building targets based on dynamic
+dependency calculations and build rules written in shell.
+
+== Features
+The +build+ program rebuilds targets that are out of date by a configurable
+criterion.  It has no dependencies outside of standard system tools.
+
+The +build-db+ creates and maintains a simple dependency database in the file
+system to support +build+.  It has no dependencies outside of standard system
+tools.
+
+== License
+Files in this package are in the public domain.
+
+The build package comes with NO WARRANTY.
+
+

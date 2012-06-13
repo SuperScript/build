@@ -1,0 +1,4 @@
+/service/ipccmd/s
+
+The first line names the ipc socket to use in ipcrequest.
+

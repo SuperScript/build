@@ -1,0 +1,211 @@
+= build (1)
+:doctype: manpage
+
+== NAME
+build - rebuild out of date targets
+
+== SYNOPSIS
+!!!!
+build [ -vq ] _mode_ [ mode-opts ] [ _arg_ ... ]
+!!!!
+
+== DESCRIPTION
+The +build+ program rebuilds out of date targets.  A target is out of date with
+respect to its dependencies if the version used for the last build of the target
+does not match the current version.  The match criterion is configurable.  Shell
+script fragments are invoked to rebuild targets.
+
+=== BUILD FILES
+A build file contains a shell script fragment that governs how targets are
+created.  The +build+ program determines which build file to use by matching the
+target name against files with a +.build+ extension.  The match selects the
+build file with the longest number of dot-separated segments matching (before
++.build+), with the string +default+ matching any prefix.  So for the target
++foo.bar.baz+ the +build+ program will look for the following build files:
+[horizontal]
++foo.bar.baz.build+::
+Matches +foo.bar.baz+.
++default.bar.baz.build+::
+Matches +whatever.bar.baz+.
++default.baz.build+::
+Matches +whatever.baz+.
++default.build+::
+Matches any target.
+
+Within the context created by +build+, the commands in the build file are
+executed with:
+!!!!
+. _build_file_ _target_ _basename_ _target_.tmp > _target_.tmp
+!!!!
+where +_basename_+ is the portion of the target name that matches +default+.
+The program write the contents of the target file to standard output.  If
+this step completes successfully, +build+ then moves +_target_.tmp+ to
++_target_+.  When you must construct the target directly in place, use
+<<build_notarget,+build_notarget+>>.
+
+A single build file can match more than one target, and may treat these targets
+in the same way or in different ways.  Top level targets are handled by
++default.build+ or by +_target_.build+, each in a different manner.  Object
+files built from C source are normally handled by +default.o.build+, all in the
+same way.
+
+The build file script can use several shell functions defined by +build+:
++build_dependcc [ _arg_ ...]+::
+Print the list of files included in each +_arg_+ with +#include+.  Use this to
+generate dependencies for C or C++ files.  NB: This lists only local header
+files (those in double quotes) and not system header files (those in angle
+brackets).
+
++build_failed [ _msg_ ... ]+::
+Print messages indicating failure to build the current target, followed by
++_msg_+ arguments to standard error, and exit 111.
+
++build_ifchanged [ _arg_ ... ]+::
+Declare a dependency on each +_arg_+ for the current build target.  This
+instructs +build+ to rebuild the target if any such dependency changes.
+
++build_ifcreated [ _arg_ ... ]+::
+Declare a dependency on the nonexistence of each +_arg_+ for the current build
+target.  This instructs +build+ to rebuild the target if such a dependency
+exists.  This is how +build+ handles the appearance of a new more specific build
+file for a target.
+
++build_info [ _target_ ]+::
+Print rebuild info of dependencies for +_target_+.  For each target print a line
+for each of +_target_+, the build file used to build it, the basename for the
+target, and the list of dependencies, all followed by an empty line.  NB: The
+basename may be empty.
+
+[[build_notarget]]
++build_notarget+::
+This function supports direct construction of the target by the build file.  It
+removes the temporary file that accumulates the output of the build commands.
+This is useful when a subordinate target construction program cannot write
+material to standard output.  It is also useful for creating targets that are
+always considered out of date.
+
+==== STANDARD BUILD FILES
++default.a.build+::
+Create an object archive.
+
++default.build+::
+Create targets unqualified by file extension.  Handles standard cases including
++it+, +rts+, scripts, and executables.
+
++default.o.build+::
+Create a C object file.
+
++home.build+::
+Record the current working directory.
+
++makefile.build+::
+This file is not a genuine build file, but a utility program used to run
+build commands under the control of make.
+
+=== CONTROL FILES
+By convention, files named +_base_=_X_+ are used to supply auxiliary information
+for use in build commands.  The way control files are used is not built into the
+system, but determined by build files.  The commands for building targets may
+depend on both the existence and contents of a control file.  The standard build
+files adhere to the following uses.
+
++_target_=d+::
+Used in +default.build+, this contains auxiliary data for the programs that
+build the target. 
+
++_target_=x+::
+Used in +default.build+, existence indicates that the target is a compiled
+executable.  Lines ending in +.lib+ name library dependencies for the program,
+files that contain additional command-line arguments for the linker.  Lines
+ending in +=d+ are treated as if appended to the top-level control file.  All
+other lines name object file dependencies for the target, and are linked into
+the executable.
+
++_target_=s+::
+Used in +default.build+, existence indicates that the target is a script.  If the
+file is empty, the target is assumed to be a shell script, with
++_target_.sh+ containing the body (this can be a source or target file).
+Otherwise, the file contains a list of dependencies which are concatenated to
+construct the target.  The second construction does not assume that the result
+is a shell script and works for any scripting language.
+
++_target_=l+::
+Used in +default.a.build+.  This file contains a list of object files to include
+into a C library.
+
+== OPTIONS
+
+=== GLOBAL OPTIONS
++-q+::
+Quiet.  Decrement the verbosity level.  Print fewer status and error messages.
+This option undoes the effect of +-v+ and can be used multiple times.
+
++-v+::
+Verbose.  Increment the verbosity level.  Print more status and error messages.
+This option undoes the effect of +-q+ and can be used multiple times.
+
+=== MODES
+The +build+ program takes a mandatory mode argument indicating the action
+required.  Each mode may take additional options and arguments.  The modes are:
+
++target [ -f ] [ _arg_ ... ]+::
+Build one or more targets.  The +-f+ option forcibly removes all given targets
+before building.
+
++clean+::
+Remove all known targets and build status information.
+
++help+::
+Print a helpful message showing usage and a brief description of each mode.
+
++list+::
+List all targets in the build database.
+
++makeinfo _target_+::
+Print dependency information in the build database for +_target_+.
+
++status+::
+List status for all known targets and source files in the build database.
+
+== EXIT STATUS
+The +build+ program exits 111 for temporary errors and 100 for permanent errors.
+It exits 0 on success.
+
+== EXAMPLES
+Build the target +hello.o+:
+!!!!
+build -v target -f hello.o
+!!!!
+
+List all build targets:
+!!!!
+build list
+!!!!
+
+Show status of all files registered in the build database:
+!!!!
+build status
+!!!!
+
+Print dependencies and build file information for the +hello.o+ target:
+!!!!
+build makeinfo hello.o
+!!!!
+
+Remove all known targets and status information:
+!!!!
+build clean
+!!!!
+
+== SEE ALSO
+The http://cr.yp.to/redo.html[redo] package.
+The link:build-db.html[+build-db+] program.
+
+== BUGS
+File names must not contain special shell characters.
+
+The file +makefile.build+ is not a genuine build file and should be renamed.
+
+The +build+ program assumes that the +build-db+ is a sibling, residing in the
+same directory.
+

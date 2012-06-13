@@ -1,0 +1,142 @@
+= build-db (1)
+:doctype: manpage
+
+== NAME
+build-db - maintain build status database
+
+== SYNOPSIS
+!!!!
+build-db [ -vq ] _mode_ [ mode-opts ] [ _arg_ ... ]
+!!!!
+
+== DESCRIPTION
+The +build-db+ program maintains a database of information for build targets.
+It uses a configurable criterion to determine whether a target is up to date.
+The link:build.html[+build+] program uses it to manage dependency tracking.
+
+The +build-db+ program is used by the link:build.html[+build+] program.  There
+is no need to call it directly.
+
+=== THE DATABASE
+The database resides in a hidden directory +.build-db/+ within the current
+working directory.  This directory contains three elements:
+
++current/+::
+A directory containing empty files indicating that a target is up to date for
+purposes of the current +build+ run.
+
++sigprog+::
+A shell script body that calculates the signature for a source file or target.
+This signature determines whether the file is up to date.
+
++status/+::
+A directory containing files that hold dependency and signature information for
+source files and targets.  Files in +.build-db/+ contain status lines and
+dependency lines.
+
+
+A status line contains a single letter indicating the status of the file.
+[horizontal]
++B+:: A target being built.
++N+:: A nonexistent file.
++S+:: A source file.
++T+:: A built target file.
+
+A dependency line for a target has one of the following forms:
+[horizontal]
++_sourcefile_ N+::
+A negative dependency; the target is out of date if +_sourcefile_+
+exists.
++_sourcefile_ S _sig_+::
+A source file; the target is out of date if its signature has changed.
++_target_ T _sig_+::
+A target file; the target is out of date if it is out of date.
++_buildfile_ M _target_ _base_+::
+A makefile rule; it lists the build file and its arguments.
+
+== OPTIONS
+
+=== GLOBAL OPTIONS
++-q+::
+Quiet.  Decrement the verbosity level.  Print fewer status and error messages.
+This option undoes the effect of +-v+ and can be used multiple times.
+
++-v+::
+Verbose.  Increment the verbosity level.  Print more status and error messages.
+This option undoes the effect of +-q+ and can be used multiple times.
+
+=== MODES
+The +build-db+ program takes a mandatory mode argument indicating the action
+required.  Each mode may take additional options and arguments.  The modes are:
+
++check _file_+::
+Check whether +_file_+ is up to date.  If it is, print +Y+ and exit 0.
+Otherwise print a status indicator and return 111.  The status codes are:
+[horizontal]
+  +S+::: Out of date source file.
+  +T+::: Out of date target.
+  +N+::: Out of date file no longer exists.
+
++deps _target_ _dep_ ...+::
+Add files to the +_target_+ dependency list.
+
++remove _file_+::
+Remove +_file_+ from the database.
+
++removedb+::
+Remove the entire database.
+
++status+::
+List status for all files in the database.
+
++list+::
+List all targets in the database.
+
++info+::
+Show dependency info for all targets in the database.  For each target, this
+prints lines containing the target, the build file and base, and each
+dependency, followed by an empty line.
+
++init+::
+Initialize for build run.  This removes all files under +.build-db/current/+.
+
++sigprog+::
+Copy the contents of conf-sig to act as the signature program for determining
+whether files are up to date.
+
++set_nofile _file_+::
+Mark +_file_+ as nonexistent.
+
++set_source _file_+::
+Mark +_file_+ as a source file.
+
++set_building _file_+::
+Mark +_file_+ as a target undergoing rebuild.
+
++set_target _file_+::
+Mark +_file_+ as a built target.
+
++set_makerule _target_ _buildfile_ _base_+::
+Add a make rule to target record.
+
++help+::
+Print a usage statement and a list of modes.
+
+== EXIT STATUS
+The +build+ program exits 111 for temporary errors and to indicate an
+out-of-date target, and 100 for permanent errors.  It exits 0 on success.
+
+== EXAMPLES
+List the targets in the current database:
+Build the target +hello.o+:
+!!!!
+build-db list
+!!!!
+
+
+== SEE ALSO
+The link:build.html[+build+] program.
+
+== BUGS
+File names must not contain special shell characters.
+

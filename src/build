@@ -1,0 +1,330 @@
+#!/bin/sh
+# WARNING: This file was auto-generated. Do not edit!
+shout() { echo "build: $*" >&2; }
+barf() { shout "fatal: $*"; exit 111; }
+safe() { "$@" || barf "cannot $*"; }
+yell() { [ $verbose -ge $1 ] && { shift; shout "$*"; } }
+
+usage() {
+  shout "usage: build [ -vq ] mode [ mode-opts ] [ arg ... ]"
+  exit 100;
+}
+
+home="`dirname $0`"
+
+build_help() {
+  shout "usage: build [ -vq ] mode [ mode-opts ] [ arg ... ]" 2>&1
+  cat << EOF
+
+Supported modes are:
+
+  target arg ...	Build one or more targets.
+  list			List all known targets.
+  status		List status for all known target and source files.
+  makeinfo target	Print make dependency info for a target.
+  clean			Remove all known targets and build status information.
+  help			Print this text.
+
+EOF
+  exit 0
+}
+
+build_uptodate() {
+  yell 2 "build_uptodate $*"
+  build_uptodate_stat="`"$home/build-db" $vopts check "$build_target_t"`"
+  [ "Y" = "$build_uptodate_stat" ] && return 0 || return 111
+}
+
+build_ifcreated() {
+  yell 2 "build_ifcreated $*"
+  for build_ifcreated_f in ${1+"$@"}
+  do
+    build_uptodate "$f" && continue
+    if [ -f "$build_ifcreated_f" ]
+    then
+      safe build_target_list "$build_ifcreated_f"
+    else
+      safe "$home/build-db" $vopts set_nofile "$build_ifcreated_f"
+      safe "$home/build-db" $vopts deps "$BUILD_TARGET" "$build_ifcreated_f"
+    fi
+  done
+  return 0
+}
+
+build_ifchanged() {
+  yell 2 "build_ifchanged $*"
+  safe build_target_list "$@"
+  safe "$home/build-db" $vopts deps "$BUILD_TARGET" ${1+"$@"}
+}
+
+build_notarget() {
+  rm -f -- "$BUILD_TARGET.tmp"
+}
+
+build_failed() {
+  barf "cannot build target: $BUILD_TARGET: $*"
+}
+
+build_depcpp() {
+  yell 2 "build_depcpp $*"
+  # Not useless: arg may contain =.
+  safe cat "$@" | safe awk '
+    /^[ \t]*#[ \t]*include[ \t]+"[^"]+"/ {
+      split($0,a,/"/)
+      print a[2]
+    }
+  '
+}
+
+build_dependcc() {
+  yell 2 "build_dependcc $*"
+  safe build_depcpp "$@" | while read build_dependcc_dep
+  do
+    [ -z "$build_dependcc_dep" ] && continue
+    safe build_target_list "$build_dependcc_dep"
+    safe build_dependcc "$build_dependcc_dep"
+    safe "$home/build-db" $vopts deps "$BUILD_TARGET" "$build_dependcc_dep"
+  done
+}
+
+build_params() {
+  safe awk '
+    BEGIN {
+      len = split(ARGV[1],a,/\./)
+      bld = ARGV[1] ".build"
+      base = ""
+      print bld,base
+      for (i = 1;i <= len;i++) {
+	sub(/^(default.)?[^.]*\./,"default.",bld)
+	base = base a[i]
+	print bld,base
+	base = base "."
+      }
+    }
+  ' "$@" < /dev/null
+}
+
+build_do() {
+  yell 2 "build_do $*"
+  build_do_file="$1"
+  shift
+  ( BUILD_TARGET="$1"
+    export BUILD_TARGET
+    [ 3 -le $verbose ] && set -x
+    . "$build_do_file" "$1" "$2" "$3" > "$3"
+    exit $?
+  )
+}
+
+build_run() {
+  yell 2 "build_run $*"
+  # commands base
+  build_run_t="$1"
+  safe build_params "$build_run_t" \
+  | while read build_run_c build_run_b
+    do
+      [ -r "$build_run_c" ] || {
+	safe "$home/build-db" $vopts set_nofile "$build_run_c"
+	safe "$home/build-db" $vopts deps "$build_run_t" "$build_run_c"
+	continue
+      }
+      safe "$home/build-db" $vopts set_source "$build_run_c"
+      safe "$home/build-db" $vopts deps "$build_run_t" "$build_run_c"
+      safe "$home/build-db" $vopts set_makerule "$build_run_t" \
+	"$build_run_c" "$build_run_b"
+      build_do "$build_run_c" \
+	"$build_run_t" "$build_run_b" "$build_run_t.tmp"
+      rcode=$?
+      if [ 0 -eq $rcode ]
+      then
+	if [ -f "$build_run_t.tmp" ]
+	then
+	  mv "$build_run_t.tmp" "$build_run_t" || echo 111
+	  echo 0
+	  break
+	fi
+	echo 0
+	break
+      fi
+      rm -f -- "$build_run_t.tmp"
+      echo 111
+      break
+    done \
+  | sh -c 'read rcode && exit $rcode || exit 111'
+}
+
+build_target() {
+  yell 2 "build_target $*"
+  # Remove all targets before building anything.
+  # Avoids introducing target order dependency.
+  build_target_force=0
+  while [ 0 -lt $# ]
+  do
+    case "$1" in
+      -f)
+        build_target_force=1
+        shift
+        ;;
+      --)
+        shift
+	break
+        ;;
+      *)
+	break
+	;;
+    esac
+  done
+
+  if [ 1 -eq $build_target_force ]
+  then
+    safe build_clean ${1+"$@"}
+  fi
+  safe "$home/build-db" $vopts init
+  safe build_target_list ${1+"$@"}
+}
+
+build_target_list() {
+  for build_target_t in ${1+"$@"}
+  do
+    case "$build_target_t" in
+      ./*)
+	build_target_t="`echo "$build_target_t" | sed "s@\./@@"`"
+	;;
+      /*)
+	# FIXME: OK for source?
+	barf "target has absolute path: $build_target_t"
+	;;
+      *)
+	;;
+    esac
+
+    build_target_s="`"$home/build-db" $vopts check "$build_target_t"`"
+
+    case "$build_target_s" in
+      Y)
+	continue
+	;;
+      S)
+	safe "$home/build-db" $vopts set_source "$build_target_t"
+	continue
+	;;
+      N)
+	safe "$home/build-db" $vopts set_nofile "$build_target_t"
+	continue
+	;;
+      T)
+	# FIXME: Attempt to borrow.
+	safe "$home/build-db" $vopts set_building "$build_target_t"
+	safe build_run "$build_target_t"
+	# Commit even if no target file due to build_notarget.
+	# That creates a constantly out-of-date target, like "it".
+	safe "$home/build-db" $vopts set_target "$build_target_t"
+	yell 1 "$build_target_t"
+	continue
+	;;
+      *)
+	barf "unrecognized status: $build_target_t: $build_target_s"
+	;;
+    esac
+  done
+}
+
+build_status() {
+  yell 2 "build_status $*"
+  safe "$home/build-db" $vopts status
+}
+
+build_list() {
+  yell 2 "build_list $*"
+  safe "$home/build-db" $vopts list
+}
+
+build_clean() {
+  yell 2 "build_clean $*"
+  # Remove files for targets only.
+  safe build_list | {
+    safe awk '
+      BEGIN {
+        all = (1 == ARGC)
+        for(i = 1;i <= ARGC;++i)
+          a[ARGV[i]] = 1;
+        ARGC = 1
+      }
+      all || a[$1] { print $1; }
+    ' "$@"
+  } | while read f
+  do
+    safe rm -f -- "$f"
+  done
+
+  # Remove db entries for all args.
+  if test 0 -lt $#
+  then
+    safe "$home/build-db" $vopts remove "$@"
+  fi
+}
+
+build_info() {
+  yell 2 "build_info $*"
+  safe "$home/build-db" $vopts info "$@"
+}
+
+# MAIN
+
+verbose=1
+mode=help
+
+while [ 0 -lt $# ]
+do
+  case "$1" in
+    -v)
+      verbose="`expr $verbose + 1`"
+      shift
+      ;;
+    -q)
+      [ 0 -eq $verbose ] || verbose="`expr $verbose - 1`"
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+case "$1" in
+  help)
+    safe build_help
+    ;;
+  target|status|list|makeinfo|clean)
+    mode="$1"
+    shift
+    ;;
+  *)
+    usage
+    ;;
+esac
+
+if [ 2 -lt $verbose ]
+then
+  vopts="-v -v"
+else if [ 1 -lt $verbose ]
+then
+  vopts="-v"
+else if [ 0 -lt $verbose ]
+then
+  vopts=""
+else
+  vopts="-q"
+fi fi fi
+
+[ 3 -le $verbose ] && set -x
+
+safe "$home/build-db" $vopts sigprog
+safe "build_$mode" "$@"
+
+exit 0
+

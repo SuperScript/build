@@ -1,0 +1,89 @@
+= build (1)
+:doctype: manpage
+
+== NAME
+build - construct targets from sources
+
+== SYNOPSIS
+!!!!
+build [ -vq ] _mode_ [ mode-options ] [ _arg_ ... ]
+!!!!
+
+== DESCRIPTION
+The +build+ program creates target files from source files.  It executes +sh+
+scripts to create its outputs.  Rules for standard dependencies are extensible
+by writing new +sh+ scripts.
+
+== OPTIONS
+
+=== GENERAL OPTIONS
++-q+::
+Quiet.  Do not print error messages.  You may apply this more than once to undo
+the effect of multiple +-v+ options.
+
++-v+::
+Verbose.  Print both status and error messages.  You may apply this more than
+once to increase the level of output.
+
+
+=== MODES
++help+::
+Print a help message.
+
++target _targ_ ...+::
+
++status+::
++list+::
++makeinfo+::
++clean+::
+
+
++-c _limit_+::
+Execute at most +_limit_+ copies of +_prog_+ concurrently.  If a
+trigger pull occurs while +_limit_+ copies are running,
++trigger-listen+ executes +_prog_+ as soon as one of the running
+copies exits.
+
++-t _timeout_+::
+Wait at most +_timeout_+ seconds for a trigger pull.  If
++_timeout_+
+seconds elapse without a trigger pull, then +trigger-listen+ pulls
+its own trigger.  The default value of +_timeout_+
+is +(unsigned int)~0+.
+
++-i _interval_+::
+Wait at least +_interval_+ seconds between executions of
++_prog_+.  If
+it receives a trigger pull within +_interval_+ seconds of the last
+execution, +trigger-listen+ executes +_prog_+ when
++_interval_+
+seconds have elapsed.  The default value of +_interval_+ is 0.
+
++-g _gid_+::
+Switch group ID to +_gid_+ after preparing to receive trigger pulls.
+
++-u _uid_+::
+Switch user ID to +_uid_+ after preparing to receive connections.
+
++-U+::
+Same as +-g $GID -u $UID+.  Typically, +$GID+ and +$UID+ are
+set by http://cr.yp.to/daemontools/envuidgid.html[+envuidgid+].
+
++-d+:: 
+Delete.  Remove and recreate the fifo +_path_+ upon startup. (Default)
+
++-D+::
+No delete.  Do not remove and recreate +_path_+ upon startup.
+
+
+== EXIT STATUS
+The +trigger-listen+ program exits 111 for temporary errors and 100 for
+permanent errors.  It exits 0 on success or when terminated by signal.
+
+
+== EXAMPLES
+!!!!
+trigger-listen ./trigger echo \'Hello world!'
+!!!!
+
+

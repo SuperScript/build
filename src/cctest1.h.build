@@ -1,0 +1,4 @@
+# This file produces cctest1.h for use in cctest.c.
+
+echo 'extern int cctest1_int;'
+
