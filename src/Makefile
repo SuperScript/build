@@ -1,6 +1,13 @@
 
 default: it
 
+atest.a: \
+default.a.build \
+atest=l \
+makelib \
+cctest.o
+	sh makefile.build default.a.build atest.a atest
+
 cctest: \
 default.build \
 cctest=x \
@@ -34,10 +41,7 @@ home.build
 
 it: \
 default.build \
-it=d \
-cctest \
-shtest \
-sysdeps
+it=d
 	sh makefile.build default.build it it
 
 load: \
@@ -53,6 +57,13 @@ makeinclude.sh \
 warn-auto.sh
 	sh makefile.build default.build makeinclude makeinclude
 
+makelib: \
+default.build \
+print-ar.sh \
+systype \
+warn-auto.sh
+	sh makefile.build default.build makelib makelib
+
 makescrip: \
 default.build \
 warn-auto.sh \
@@ -60,6 +71,20 @@ print-makescrip.sh \
 conf-scrip \
 home
 	sh makefile.build default.build makescrip makescrip
+
+mkfile: \
+default.build \
+mkfile=d \
+it
+	sh makefile.build default.build mkfile mkfile
+
+rts: \
+default.build \
+rts=d \
+atest.a \
+cctest \
+shtest
+	sh makefile.build default.build rts rts
 
 shtest: \
 default.build \
@@ -71,13 +96,6 @@ shtest.sh \
 shout.sh
 	sh makefile.build default.build shtest shtest
 
-sysdeps: \
-default.build \
-systype \
-compile \
-load
-	sh makefile.build default.build sysdeps sysdeps
-
 systype: \
 default.build \
 find-systype.sh \
@@ -87,6 +105,7 @@ x86cpuid.c
 
 clean:
 	rm -f \
+	atest.a \
 	cctest \
 	cctest.o \
 	cctest1.h \
@@ -95,7 +114,9 @@ clean:
 	it \
 	load \
 	makeinclude \
+	makelib \
 	makescrip \
+	mkfile \
+	rts \
 	shtest \
-	sysdeps \
 	systype
