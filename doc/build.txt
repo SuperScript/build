@@ -199,6 +199,7 @@ build clean
 
 == SEE ALSO
 The http://cr.yp.to/redo.html[redo] package.
+
 The link:build-db.html[+build-db+] program.
 
 == BUGS
