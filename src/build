@@ -246,7 +246,7 @@ build_clean() {
     safe awk '
       BEGIN {
         all = (1 == ARGC)
-        for(i = 1;i <= ARGC;++i)
+        for(i = 1;i < ARGC;++i)
           a[ARGV[i]] = 1;
         ARGC = 1
       }

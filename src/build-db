@@ -252,7 +252,7 @@ deps_add() {
   shift
   safe awk '
     BEGIN {
-      for (i = 1;i <= ARGC;i++)
+      for (i = 1;i < ARGC;++i)
 	a[ARGV[i]] = 1
       ARGC = 1
     }
