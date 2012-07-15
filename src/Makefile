@@ -1,7 +1,5 @@
 
 default: \
-build \
-build-db \
 it
 
 rts: \
@@ -11,7 +9,6 @@ atest.a \
 cctest \
 shtest
 	sh makefile.build default.build rts rts
-
 
 atest.a: \
 default.a.build \
@@ -51,19 +48,6 @@ home: \
 home.build
 	sh makefile.build home.build home 
 
-it: \
-default.build \
-it=d \
-build \
-build-db
-	sh makefile.build default.build it it
-
-it.command: \
-default.command.build \
-it \
-it=d
-	sh makefile.build default.command.build it.command it
-
 it.rts: \
 default.rts.build \
 it.command
@@ -97,12 +81,6 @@ conf-scrip \
 home
 	sh makefile.build default.build makescrip makescrip
 
-mkfile: \
-mkfile.build \
-mkfile=d \
-it
-	sh makefile.build mkfile.build mkfile 
-
 shtest: \
 default.build \
 shtest=s \
@@ -119,3 +97,28 @@ find-systype.sh \
 trycpp.c \
 x86cpuid.c
 	sh makefile.build default.build systype systype
+
+it: \
+default.build \
+it=d \
+build \
+build-db
+	sh makefile.build default.build it it
+
+it.command: \
+default.command.build \
+it \
+it=d
+	sh makefile.build default.command.build it.command it
+
+it.install: \
+default.install.build \
+it.command \
+it=d
+	sh makefile.build default.install.build it.install it
+
+mkfile: \
+mkfile.build \
+mkfile=d \
+it
+	sh makefile.build mkfile.build mkfile 
