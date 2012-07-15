@@ -1,5 +1,7 @@
 
-default: it
+default: \
+it.www
+
 
 attribute.conf: \
 attribute.conf.build \
@@ -58,19 +60,13 @@ install.html \
 develop.html
 	sh makefile.build default.build it it
 
+it.www: \
+default.www.build \
+it
+	sh makefile.build default.www.build it.www it
+
 mkfile: \
-default.build \
+mkfile.build \
 mkfile=d \
 it
-	sh makefile.build default.build mkfile mkfile
-
-clean:
-	rm -f \
-	attribute.conf \
-	build-db.html \
-	build.html \
-	develop.html \
-	index.html \
-	install.html \
-	it \
-	mkfile
+	sh makefile.build mkfile.build mkfile 
