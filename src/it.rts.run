@@ -1,0 +1,8 @@
+here="`env - pwd`"
+PATH="`env - dirname "$here"`/command:$PATH"
+export PATH
+build target home
+build target atest.a
+build target cctest
+build target shtest
+

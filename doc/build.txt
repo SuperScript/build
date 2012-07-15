@@ -6,7 +6,7 @@ build - rebuild out of date targets
 
 == SYNOPSIS
 !!!!
-build [ -vq ] _mode_ [ mode-opts ] [ _arg_ ... ]
+build [ -v -q ] _mode_ [ mode-opts ] [ _arg_ ... ]
 !!!!
 
 == DESCRIPTION
@@ -161,9 +161,6 @@ Print a helpful message showing usage and a brief description of each mode.
 +list+::
 List all targets in the build database.
 
-+makeinfo _target_+::
-Print dependency information in the build database for +_target_+.
-
 +status+::
 List status for all known targets and source files in the build database.
 
@@ -185,11 +182,6 @@ build list
 Show status of all files registered in the build database:
 !!!!
 build status
-!!!!
-
-Print dependencies and build file information for the +hello.o+ target:
-!!!!
-build makeinfo hello.o
 !!!!
 
 Remove all known targets and status information:

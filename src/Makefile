@@ -1,5 +1,17 @@
 
-default: it
+default: \
+build \
+build-db \
+it
+
+rts: \
+default.build \
+rts=d \
+atest.a \
+cctest \
+shtest
+	sh makefile.build default.build rts rts
+
 
 atest.a: \
 default.a.build \
@@ -41,8 +53,21 @@ home.build
 
 it: \
 default.build \
-it=d
+it=d \
+build \
+build-db
 	sh makefile.build default.build it it
+
+it.command: \
+default.command.build \
+it \
+it=d
+	sh makefile.build default.command.build it.command it
+
+it.rts: \
+default.rts.build \
+it.command
+	sh makefile.build default.rts.build it.rts it
 
 load: \
 default.build \
@@ -73,18 +98,10 @@ home
 	sh makefile.build default.build makescrip makescrip
 
 mkfile: \
-default.build \
+mkfile.build \
 mkfile=d \
 it
-	sh makefile.build default.build mkfile mkfile
-
-rts: \
-default.build \
-rts=d \
-atest.a \
-cctest \
-shtest
-	sh makefile.build default.build rts rts
+	sh makefile.build mkfile.build mkfile 
 
 shtest: \
 default.build \
@@ -102,21 +119,3 @@ find-systype.sh \
 trycpp.c \
 x86cpuid.c
 	sh makefile.build default.build systype systype
-
-clean:
-	rm -f \
-	atest.a \
-	cctest \
-	cctest.o \
-	cctest1.h \
-	compile \
-	home \
-	it \
-	load \
-	makeinclude \
-	makelib \
-	makescrip \
-	mkfile \
-	rts \
-	shtest \
-	systype

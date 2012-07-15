@@ -47,12 +47,18 @@ package.
 Build +mkfile+ and replace +Makefile+ for the source directory:
 !!!!
 package/build mkfile
+!!!!
+This incorporates make rules for all targets constructed with +build+ into the
+output, replacing any existing definition for the same target or source.  Other
+targets are preserved.  When satisfied with the result, replace the existing
++Makefile+:
+!!!!
 cp compile/mkfile src/Makefile
 !!!!
 
 Create a Makefile for documentation in similar fashion:
 !!!!
-package/docs -b build mkfile
+package/build-doc mkfile
 cp compile-doc/mkfile doc/Makefile
 !!!!
 

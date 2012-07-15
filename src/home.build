@@ -1,1 +1,5 @@
-env -i pwd
+# For base-dir build:
+#env - pwd
+
+## For package build:
+dirname "`env - pwd`"

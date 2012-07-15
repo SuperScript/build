@@ -21,7 +21,6 @@ Supported modes are:
   target arg ...	Build one or more targets.
   list			List all known targets.
   status		List status for all known target and source files.
-  makeinfo target	Print make dependency info for a target.
   clean			Remove all known targets and build status information.
   help			Print this text.
 
@@ -299,7 +298,7 @@ case "$1" in
   help)
     safe build_help
     ;;
-  target|status|list|makeinfo|clean)
+  target|status|list|clean)
     mode="$1"
     shift
     ;;

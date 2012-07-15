@@ -1,0 +1,12 @@
+build: home
+build: systype
+build: makelib
+build: compile
+build: cctest1.h
+build: cctest.o
+build: atest.a
+build: load
+build: cctest
+build: makeinclude
+build: makescrip
+build: shtest

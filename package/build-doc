@@ -1,9 +1,9 @@
 #!/bin/sh
-shout() { echo "package/build: $*" >&2; }
+shout() { echo "package/build-doc: $*" >&2; }
 barf() { shout "fatal: $*"; exit 111; }
-safe() { "$@" || barf "cannot $*"; }
+
 usage() {
-  shout "usage: package/build [ --help -F -v -q ] [ opts target ... ]"
+  shout "usage: package/build-doc [ --help -F -v -q -- ] [ target ... ]"
   exit 100
 }
 
@@ -29,6 +29,9 @@ do
       verbose="$verbose -v"
       shift
       ;;
+    --help)
+      usage
+      ;;
     --)
       shift
       break
@@ -42,17 +45,13 @@ do
   esac
 done
 
-here="`env - PATH=$PATH pwd`"
-
 if test 0 -eq $#
 then
-  exec package/create $remove compile src build $verbose target \
-    `awk '$1{print $1}' < src/build=d`
+  exec package/create $remove compile-doc doc build $verbose target \
+    `awk '$1{print $1}' < doc/build=d`
 fi
 
-exec package/create $remove compile src build $verbose target "$@"
+exec package/create $remove compile-doc doc build $verbose target "$@"
 
-barf "cannot build $*"
-
-exit 0
+barf "cannot compile $*"
 

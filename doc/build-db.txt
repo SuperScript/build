@@ -6,7 +6,7 @@ build-db - maintain build status database
 
 == SYNOPSIS
 !!!!
-build-db [ -vq ] _mode_ [ mode-opts ] [ _arg_ ... ]
+build-db [ -v -q ] _mode_ [ mode-opts ] [ _arg_ ... ]
 !!!!
 
 == DESCRIPTION
